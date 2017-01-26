@@ -1,0 +1,158 @@
+/*todo:
+				- Forecast of the best investment for the client
+					by comparision of the monthly rate
+
+				- Statistics how much my money made per period
+
+				- Divide the money and make the investment with different rates
+					- when one rate make more money than the other so combine
+						the both division with the best choice
+
+				- Handling with Edge Cases
+					-	avoiding from crashing
+
+% Signature: Lidor Ettinger
+*/
+package main
+
+import (
+
+	"fmt"
+	"io/ioutil"
+	"strconv"
+	"time"
+	"encoding/xml"
+	"net/http"
+	"os"
+	"io"
+
+)
+
+// division of the xml
+type XMLEnvelope struct {
+    Gesmes  string   `xml:"gesmes,attr"`
+    Xmlns   string   `xml:"xmlns,attr"`
+    Subject string   `xml:"subject"`
+    Name    string   `xml:"Sender>name"`
+    Days    []XMLDay `xml:"Cube>Cube"`
+}
+
+
+//division each day in the xml
+type XMLDay struct {
+    Time          string            `xml:"time,attr"`
+    CurrencyRates []XMLCurrencyRate `xml:"Cube"`
+
+}
+
+//division of the currency and rate
+type XMLCurrencyRate struct {
+    Currency string `xml:"currency,attr"`
+		Rate string `xml:"rate,attr"`
+}
+
+
+// String comparison: '1' success - '0' fail
+func equal(s1, s2 string) int {
+    eq := 0
+    if len(s1) > len(s2) {
+        s1, s2 = s2, s1
+    }
+    for key, _ := range s1 {
+        if s1[key] == s2[key] {
+            eq++
+        } else {
+            break
+        }
+    }
+		if (len(s1)==eq){
+		return 1}
+
+		return 0
+}
+
+
+// User input
+func input(req,tmpDay *string,  money *float64) {
+
+	fmt.Println("\nYour Base Currency is EUR")
+
+	fmt.Print("\nEnter Your Amount: ")
+	fmt.Scanln(money)
+
+	fmt.Print("Enter Required Currency: ")
+	fmt.Scanln(req)
+
+	fmt.Println("\nPlease choose a day for convertion: YYYY-MM-DD")
+	fmt.Scanln(tmpDay)
+
+}
+
+//Download file
+func downloadFile(filepath string) (err error) {
+
+  // Create the file
+  out, err := os.Create(filepath)
+  if err != nil  {
+    return err
+  }
+  defer out.Close()
+
+  // Get the data
+  resp, err := http.Get("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml")
+  if err != nil {
+    return err
+  }
+  defer resp.Body.Close()
+
+  // Writer the body to file
+  _, err = io.Copy(out, resp.Body)
+  if err != nil  {
+    return err
+  }
+
+  return nil
+}
+
+
+// Execution of the program
+func menu(req,tmpDay string, money float64) {
+	var i int
+	var xmlE XMLEnvelope														//Parsing our xml
+
+	downloadFile("Castle.xml")
+	xmlContent,_ := ioutil.ReadFile("Castle.xml")		//Read the xml file
+	xml.Unmarshal(xmlContent,&xmlE) 								//Connect between our xml to the parsing
+
+	for ; i< len(xmlE.Days); i++ { 									//Complexity: Maximum n*n
+		if (equal(xmlE.Days[i].Time,tmpDay)==1) {			//Checking if the requested day found
+
+				for j := 0; j < len(xmlE.Days[0].CurrencyRates) ; j++ {	//Checking the requested currency
+						if (equal(req,xmlE.Days[i].CurrencyRates[j].Currency)==1) {
+							fmt.Println("\nYour Exchange is in process..")
+							timer := time.NewTimer(time.Second * 2)
+							<-timer.C
+							tmpRate,_ := strconv.ParseFloat(xmlE.Days[i].CurrencyRates[j].Rate,64)
+							fmt.Println("Your Balance is: ",tmpRate*money)
+								}
+							}
+							break;		 //When we find the date so we need the loop just for one time
+						}
+					}
+
+			if ((i)==len(xmlE.Days)) {									//When the date wasn't found
+				fmt.Println("Date wasn't found")
+			}
+
+}
+
+func main() {
+
+var money float64
+var req string
+var tmpDay string
+
+input(&req,&tmpDay,&money)
+menu(req,tmpDay,money)
+
+}
