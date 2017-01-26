@@ -20,6 +20,7 @@ Expectations
 ################
 
 //XMLEnvelope holds the fetched data as struct of strings
+
 type XMLEnvelope struct {
     Gesmes  string   `xml:"gesmes,attr"`
     Xmlns   string   `xml:"xmlns,attr"`
